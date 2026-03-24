@@ -1,0 +1,477 @@
+[gd_scene format=3 uid="uid://c87i5aomydjak"]
+
+[ext_resource type="Texture2D" uid="uid://cjk743erw2wqj" path="res://assets/SPRITESHEET.png" id="1_4vge2"]
+[ext_resource type="Texture2D" uid="uid://cdm06dclcprhr" path="res://assets/IMG-20260322-WA0000.jpg" id="2_04qyp"]
+[ext_resource type="Texture2D" uid="uid://k2sf301x2b1i" path="res://assets/IMG-20260322-WA0001.jpg" id="5_fws66"]
+[ext_resource type="Texture2D" uid="uid://drhonq4y3763i" path="res://assets/ملفات الكورس/Sprites/healthbarUnder.png" id="5_j7wrs"]
+[ext_resource type="Texture2D" uid="uid://c6kbatsp40nov" path="res://assets/ملفات الكورس/Sprites/healthbarProgress.png" id="6_fws66"]
+[ext_resource type="Texture2D" uid="uid://dkkj2ypxehp4k" path="res://assets/IMG-20260318-WA0002.jpg" id="6_hh0fu"]
+[ext_resource type="Texture2D" uid="uid://b5367felca6np" path="res://assets/IMG-20260318-WA0001.jpg" id="7_3m5ht"]
+
+[sub_resource type="GDScript" id="GDScript_q6r6c"]
+script/source = "extends CharacterBody2D
+
+const SPEED = 300.0
+const JUMP_VELOCITY = -400.0
+
+# إعدادات الصحة
+var health: int = 100
+var max_health: int = 100
+const DAMAGE_AMOUNT = 10
+
+var spawn_point: Vector2
+var is_dead: bool = false
+var is_attacking: bool = false
+
+@onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
+@export var health_bar: TextureProgressBar
+@export var joystick: Control
+
+var joystick_direction: float = 0.0
+
+func _ready():
+	spawn_point = global_position
+
+	if health_bar:
+		health_bar.update_health(health, max_health)
+	else:
+		push_error(\"HealthBar not assigned!\")
+
+	if joystick and joystick.has_signal(\"moved\"):
+		joystick.connect(\"moved\", Callable(self, \"_on_joystick_moved\"))
+	else:
+		push_error(\"Joystick not assigned or missing signal!\")
+
+	animated_sprite.animation_finished.connect(_on_animation_finished)
+
+func _on_joystick_moved(horizontal: float):
+	joystick_direction = horizontal
+
+func _physics_process(delta: float) -> void:
+	if is_dead or is_attacking:
+		return
+
+	if not is_on_floor():
+		velocity += get_gravity() * delta
+
+	# القفز
+	if Input.is_action_just_pressed(\"ui_accept\") and is_on_floor():
+		velocity.y = JUMP_VELOCITY
+		animated_sprite.play(\"jump\")
+
+	# الحركة
+	var direction_input = Input.get_axis(\"ui_left\", \"ui_right\")
+	var total_direction = direction_input + joystick_direction
+	total_direction = clamp(total_direction, -1.0, 1.0)
+
+	if total_direction != 0:
+		velocity.x = total_direction * SPEED
+		animated_sprite.flip_h = total_direction < 0
+		if is_on_floor():
+			animated_sprite.play(\"run\")
+	else:
+		velocity.x = move_toward(velocity.x, 0, SPEED)
+		if is_on_floor():
+			animated_sprite.play(\"idle\")
+
+	if not is_on_floor() and velocity.y > 0:
+		animated_sprite.play(\"fall\")
+
+	move_and_slide()
+
+# الهجوم
+func attack():
+	if is_dead or is_attacking:
+		return
+
+	is_attacking = true
+	animated_sprite.play(\"attack\")
+
+# استقبال الإدخال
+func _input(event: InputEvent):
+	if event.is_action_pressed(\"attack\"):
+		attack()
+
+# نهاية الأنيميشن
+func _on_animation_finished():
+	if animated_sprite.animation == \"attack\":
+		is_attacking = false
+
+		if is_on_floor():
+			if abs(velocity.x) > 0:
+				animated_sprite.play(\"run\")
+			else:
+				animated_sprite.play(\"idle\")
+		else:
+			animated_sprite.play(\"fall\")
+
+# الضرر
+func apply_damage():
+	if is_dead:
+		return
+
+	health = max(0, health - DAMAGE_AMOUNT)
+
+	if health_bar and health_bar.has_method(\"update_health\"):
+		health_bar.update_health(health, max_health)
+
+	if health <= 0:
+		die()
+
+func die():
+	is_dead = true
+
+	if health_bar and health_bar.has_method(\"update_health\"):
+		health_bar.update_health(0, max_health)
+
+	await get_tree().create_timer(0.5).timeout
+
+	health = max_health
+	global_position = spawn_point
+	velocity = Vector2.ZERO
+
+	if health_bar and health_bar.has_method(\"update_health\"):
+		health_bar.update_health(health, max_health)
+
+	is_dead = false
+"
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_kmyi7"]
+atlas = ExtResource("1_4vge2")
+region = Rect2(0, 900, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ey6mn"]
+atlas = ExtResource("1_4vge2")
+region = Rect2(100, 900, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_2sxpt"]
+atlas = ExtResource("1_4vge2")
+region = Rect2(200, 900, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pblkq"]
+atlas = ExtResource("1_4vge2")
+region = Rect2(300, 900, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_22dhx"]
+atlas = ExtResource("1_4vge2")
+region = Rect2(400, 900, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_diulx"]
+atlas = ExtResource("1_4vge2")
+region = Rect2(500, 900, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_nuk1v"]
+atlas = ExtResource("1_4vge2")
+region = Rect2(600, 900, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_l0qat"]
+atlas = ExtResource("1_4vge2")
+region = Rect2(700, 900, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_wpu3o"]
+atlas = ExtResource("1_4vge2")
+region = Rect2(800, 900, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_04qyp"]
+atlas = ExtResource("1_4vge2")
+region = Rect2(500, 0, 100, 92)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_j7wrs"]
+atlas = ExtResource("1_4vge2")
+region = Rect2(600, 0, 100, 92)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_fws66"]
+atlas = ExtResource("1_4vge2")
+region = Rect2(700, 0, 100, 92)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_hh0fu"]
+atlas = ExtResource("1_4vge2")
+region = Rect2(800, 0, 100, 92)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_4vge2"]
+atlas = ExtResource("1_4vge2")
+region = Rect2(0, 400, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_3m5ht"]
+atlas = ExtResource("1_4vge2")
+region = Rect2(100, 400, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_dubn7"]
+atlas = ExtResource("1_4vge2")
+region = Rect2(200, 400, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_08kqv"]
+atlas = ExtResource("1_4vge2")
+region = Rect2(300, 400, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_f6ptj"]
+atlas = ExtResource("1_4vge2")
+region = Rect2(0, 300, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_hsdmi"]
+atlas = ExtResource("1_4vge2")
+region = Rect2(100, 300, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ifa78"]
+atlas = ExtResource("1_4vge2")
+region = Rect2(200, 300, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_xtx0q"]
+atlas = ExtResource("1_4vge2")
+region = Rect2(300, 300, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_3kg8w"]
+atlas = ExtResource("1_4vge2")
+region = Rect2(400, 300, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_x63s8"]
+atlas = ExtResource("1_4vge2")
+region = Rect2(500, 300, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_0q20i"]
+atlas = ExtResource("1_4vge2")
+region = Rect2(600, 300, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_qv8l0"]
+atlas = ExtResource("1_4vge2")
+region = Rect2(700, 300, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_k6u5g"]
+atlas = ExtResource("1_4vge2")
+region = Rect2(800, 300, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_coh8c"]
+atlas = ExtResource("1_4vge2")
+region = Rect2(900, 300, 100, 100)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_epypp"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_kmyi7")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ey6mn")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_2sxpt")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_pblkq")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_22dhx")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_diulx")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_nuk1v")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_l0qat")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_wpu3o")
+}],
+"loop": false,
+"name": &"attack",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_04qyp")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_j7wrs")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_fws66")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_hh0fu")
+}],
+"loop": true,
+"name": &"idle",
+"speed": 10.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_4vge2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_3m5ht")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_dubn7")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_08kqv")
+}],
+"loop": false,
+"name": &"jump",
+"speed": 15.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_f6ptj")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_hsdmi")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ifa78")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_xtx0q")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_3kg8w")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_x63s8")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_0q20i")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_qv8l0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_k6u5g")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_coh8c")
+}],
+"loop": true,
+"name": &"run",
+"speed": 15.0
+}]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_4vge2"]
+size = Vector2(37.295147, 78.58891)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_d21ai"]
+size = Vector2(1595, 14)
+
+[sub_resource type="GDScript" id="GDScript_j7wrs"]
+resource_name = "helthbar"
+script/source = "extends TextureProgressBar
+
+# مدة ظهور الشريط قبل الاختفاء (بالثواني)
+@export var display_duration: float = 2.0
+
+# هل نستخدم تأثير التلاشي بدل الإخفاء المفاجئ؟
+@export var use_fade_out: bool = true
+
+# مدة تأثير التلاشي (بالثواني)
+@export var fade_out_duration: float = 0.3
+
+var hide_timer: Timer
+
+func _ready():
+	# نبدأ مخفيين
+	visible = false
+	
+	# إنشاء المؤقت لإخفاء الشريط بعد فترة
+	hide_timer = Timer.new()
+	add_child(hide_timer)
+	hide_timer.one_shot = true
+	hide_timer.timeout.connect(_on_hide_timer_timeout)
+
+# دالة عامة لتحديث قيمة الشريط وإظهاره
+func update_health(current_health: int, max_health: int):
+	# تعيين القيم
+	max_value = max_health
+	value = current_health
+	
+	# إذا كان الشريط مخفيًا، نظهره
+	if not visible:
+		visible = true
+		# نضمن أن الشفافية كاملة عند الظهور (لحالة استخدام التلاشي)
+		modulate.a = 1.0
+	
+	# نعيد ضبط المؤقت (لو كان يعمل سابقًا نوقفه ونبدا من جديد)
+	hide_timer.stop()
+	hide_timer.start(display_duration)
+
+# استدعاء عند انتهاء المؤقت
+func _on_hide_timer_timeout():
+	if use_fade_out:
+		# تأثير تلاشي سلس
+		var tween = create_tween()
+		tween.tween_property(self, \"modulate:a\", 0.0, fade_out_duration)
+		await tween.finished
+		visible = false
+		modulate.a = 1.0  # نعيد الشفافية للظهور القادم
+	else:
+		# إخفاء مباشر
+		visible = false
+"
+
+[node name="Node2D" type="Node2D" unique_id=1774520376]
+metadata/_edit_vertical_guides_ = [-478.0]
+
+[node name="CharacterBody2D" type="CharacterBody2D" parent="." unique_id=1420861579]
+position = Vector2(383, 469)
+rotation = -0.09526586
+script = SubResource("GDScript_q6r6c")
+
+[node name="Camera2D" type="Camera2D" parent="CharacterBody2D" unique_id=557243196]
+zoom = Vector2(1.65, 1.65)
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="CharacterBody2D" unique_id=664667403]
+position = Vector2(3.4752731, -46.88201)
+rotation = 0.08726646
+scale = Vector2(2.181, 2.38181)
+sprite_frames = SubResource("SpriteFrames_epypp")
+animation = &"attack"
+autoplay = "attack"
+frame = 8
+frame_progress = 1.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="CharacterBody2D" unique_id=1723731857]
+position = Vector2(4.4794006, -16.205078)
+rotation = 0.109599814
+scale = Vector2(0.9999997, 0.9999997)
+shape = SubResource("RectangleShape2D_4vge2")
+
+[node name="StaticBody2D" type="StaticBody2D" parent="." unique_id=266190304]
+position = Vector2(568, 487)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="StaticBody2D" unique_id=467839280]
+position = Vector2(775.5, 799)
+shape = SubResource("RectangleShape2D_d21ai")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=409449127]
+
+[node name="up" type="TouchScreenButton" parent="CanvasLayer" unique_id=676421423]
+position = Vector2(1037, 386)
+scale = Vector2(0.08213257, 0.061959673)
+texture_normal = ExtResource("2_04qyp")
+action = "ui_accept"
+
+[node name="TextureProgressBar" type="TextureProgressBar" parent="CanvasLayer" unique_id=1605539885]
+offset_right = 64.0
+offset_bottom = 14.0
+texture_under = ExtResource("5_j7wrs")
+texture_progress = ExtResource("6_fws66")
+script = SubResource("GDScript_j7wrs")
+
+[node name="attack" type="TouchScreenButton" parent="CanvasLayer" unique_id=1186513974]
+position = Vector2(907.00006, 390)
+scale = Vector2(0.075648434, 0.06484152)
+texture_normal = ExtResource("5_fws66")
+action = "attack"
+
+[node name="left" type="TouchScreenButton" parent="CanvasLayer" unique_id=1154897841]
+position = Vector2(29.999996, 499)
+scale = Vector2(0.14266303, 0.13315219)
+texture_normal = ExtResource("6_hh0fu")
+action = "ui_left"
+
+[node name="righ" type="TouchScreenButton" parent="CanvasLayer" unique_id=1828443848]
+position = Vector2(131, 498)
+scale = Vector2(0.12907608, 0.13586946)
+texture_normal = ExtResource("7_3m5ht")
+action = "ui_right"
